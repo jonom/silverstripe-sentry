@@ -16,7 +16,7 @@ namespace phptek\Sentry\Adaptor;
  * used at any point.
  */
 
-abstract class SentryClientAdaptor extends \Object
+abstract class SentryClientAdaptor extends \SS_Object
 {
 
     /**
