@@ -84,7 +84,7 @@ $logger->error('TEST: ERROR');  // Sent
 PHP:
 ```
 $logger = Injector::inst()->createWithArgs(Logger::class, ['error-log'])
-    ->pushHandler(SentryHandler::create('INFO)); // Send errors >= INFO (despite what's set in YML)
+    ->pushHandler(SentryHandler::create('INFO')); // Send errors >= INFO (despite what's set in YML)
 
 $logger->info('TEST: INFO');    // Sent
 $logger->warning('TEST: WARN'); // Sent
@@ -94,6 +94,35 @@ $logger->error('TEST: ERROR');  // Sent
 You can test how these messages appear in Sentry itself, by running the test task:
 
     ./vendor/bin/sake dev/tasks/PhpTek-Sentry-Tasks-SentryTestConnectionTask
+
+## Tracing
+
+This module passes all Sentry SDK options via `PhpTek\Sentry\Adaptor\SentryAdaptor.opts`,
+so tracing can be enabled with standard Sentry options.
+
+Example:
+
+```
+PhpTek\Sentry\Adaptor\SentryAdaptor:
+    opts:
+        traces_sample_rate: 0.2
+        # Optional: only propagate tracing headers to these hosts
+        trace_propagation_targets:
+            - '^https://api.example.com'
+```
+
+For custom instrumentation around critical workflows, use
+`PhpTek\Sentry\Helper\SentryTracingHelper::withTransaction()`:
+
+```
+use PhpTek\Sentry\Helper\SentryTracingHelper;
+
+SentryTracingHelper::withTransaction('checkout', function (): void {
+        // Your business logic
+}, 'app.checkout');
+```
+
+Note: Tracing payloads are only sent when tracing is enabled in options.
 
 ## Default Integrations
 
@@ -128,7 +157,7 @@ instead.
             'Unique-ID' => 44
         ],
         // Appears in the "Details" tab under "Additional Data"
-        extra => [
+        'extra' => [
             'Moon-Phase' => 'Full',
             'Tummy-Status' => 'Empty',
             'Cats' => 'Are furry'
