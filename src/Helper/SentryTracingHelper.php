@@ -12,6 +12,9 @@ namespace PhpTek\Sentry\Helper;
 use Sentry\SentrySdk;
 use Sentry\Tracing\SpanStatus;
 use Sentry\Tracing\TransactionContext;
+use ReflectionException;
+use ReflectionFunction;
+use ReflectionMethod;
 use Throwable;
 
 /**
@@ -39,7 +42,7 @@ class SentryTracingHelper
         $hub->setSpan($transaction);
 
         try {
-            $result = $callback($transaction);
+            $result = self::invokeCallback($callback, $transaction);
             $transaction->setStatus(SpanStatus::ok());
 
             return $result;
@@ -49,6 +52,39 @@ class SentryTracingHelper
         } finally {
             $transaction->finish();
             $hub->setSpan($previousSpan);
+        }
+    }
+
+    /**
+     * Invokes a callback with transaction when supported, otherwise without args.
+     *
+     * @param callable $callback
+     * @param mixed $transaction
+     * @return mixed
+     */
+    private static function invokeCallback(callable $callback, $transaction)
+    {
+        try {
+            if (is_array($callback)) {
+                $reflection = new ReflectionMethod($callback[0], $callback[1]);
+
+                if ($reflection->getNumberOfParameters() > 0) {
+                    return $callback($transaction);
+                }
+
+                return $callback();
+            }
+
+            $reflection = new ReflectionFunction($callback);
+
+            if ($reflection->getNumberOfParameters() > 0) {
+                return $callback($transaction);
+            }
+
+            return $callback();
+        } catch (ReflectionException $e) {
+            // Fall back to the safer no-arg execution path if reflection fails.
+            return $callback();
         }
     }
 }

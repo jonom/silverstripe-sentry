@@ -12,6 +12,7 @@ namespace PhpTek\Sentry\Handler;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Injector\Injectable;
 
@@ -112,7 +113,7 @@ class SentryLogsHandler extends AbstractProcessingHandler
      */
     private static function isAtOrAboveErrorMonitoringThreshold(Level $level): bool
     {
-        $configuredThreshold = static::config()->get(SentryHandler::class, 'log_level');
+        $configuredThreshold = Config::inst()->get(SentryHandler::class, 'log_level');
         $threshold = self::normaliseLevel($configuredThreshold, Level::Warning);
 
         return $level->value >= $threshold->value;
