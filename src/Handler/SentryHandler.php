@@ -45,6 +45,18 @@ class SentryHandler extends AbstractProcessingHandler
     private static ?int $log_level = null;
 
     /**
+     * @var float
+     */
+    private static float $flush_timeout = 2.0;
+
+    /**
+     * Ensures shutdown flush registration happens only once per runtime.
+     *
+     * @var bool
+     */
+    private static bool $shutdown_flush_registered = false;
+
+    /**
      * @var SentryLogger|null
      */
     private $logger = null;
@@ -72,7 +84,27 @@ class SentryHandler extends AbstractProcessingHandler
         $this->logger = SentryLogger::factory($client, $config);
         $this->client = $client;
 
+        self::registerShutdownFlush();
+
         parent::__construct($level, $bubble);
+    }
+
+    /**
+     * Registers a one-time shutdown flush to improve delivery reliability.
+     *
+     * @return void
+     */
+    private static function registerShutdownFlush(): void
+    {
+        if (self::$shutdown_flush_registered) {
+            return;
+        }
+
+        self::$shutdown_flush_registered = true;
+
+        register_shutdown_function(static function (): void {
+            SentryAdaptor::flush((float) Config::inst()->get(static::class, 'flush_timeout'));
+        });
     }
 
     /**

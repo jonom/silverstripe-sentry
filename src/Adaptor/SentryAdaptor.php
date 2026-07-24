@@ -178,18 +178,7 @@ class SentryAdaptor
         $opts = Injector::inst()
             ->convertServiceProperty(array_merge($optsConfig, $opts));
 
-        // Ref #65: Avoid duplicate exception/error listener execution by
-        // explicitly controlling integrations unless users override them.
-        if (!array_key_exists('default_integrations', $opts) && !array_key_exists('integrations', $opts)) {
-            $opts['default_integrations'] = false;
-            $opts['integrations'] = [
-                new EnvironmentIntegration(),
-                new FrameContextifierIntegration(),
-                new ModulesIntegration(),
-                new RequestIntegration(),
-                new TransactionIntegration(),
-            ];
-        }
+        $opts = self::applyDefaultIntegrations($opts);
 
         // Deal with proxy settings. Sentry permits host:port format but SilverStripe's
         // YML config only permits single backtick-enclosed env/consts per config
@@ -204,5 +193,52 @@ class SentryAdaptor
         }
 
         return $opts;
+    }
+
+    /**
+     * Applies a conservative default integration set to avoid duplicate listener
+     * behaviour when no explicit integration configuration is supplied.
+     *
+     * @param array $opts
+     * @return array
+     */
+    public static function applyDefaultIntegrations(array $opts): array
+    {
+
+        // Ref #65: Avoid duplicate exception/error listener execution by
+        // explicitly controlling integrations unless users override them.
+        if (!array_key_exists('default_integrations', $opts) && !array_key_exists('integrations', $opts)) {
+            $opts['default_integrations'] = false;
+            $opts['integrations'] = [
+                new EnvironmentIntegration(),
+                new FrameContextifierIntegration(),
+                new ModulesIntegration(),
+                new RequestIntegration(),
+                new TransactionIntegration(),
+            ];
+        }
+
+        return $opts;
+    }
+
+    /**
+     * Flushes any buffered Sentry payloads.
+     *
+     * @param float $timeout
+     * @return void
+     */
+    public static function flush(float $timeout = 2.0): void
+    {
+        if (function_exists('Sentry\\flush')) {
+            \Sentry\flush($timeout);
+
+            return;
+        }
+
+        $client = SentrySdk::getCurrentHub()->getClient();
+
+        if ($client && method_exists($client, 'flush')) {
+            $client->flush();
+        }
     }
 }

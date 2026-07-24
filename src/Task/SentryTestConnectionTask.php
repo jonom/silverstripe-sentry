@@ -11,6 +11,7 @@
 namespace PhpTek\Sentry\Tasks;
 
 use Monolog\Level;
+use PhpTek\Sentry\Adaptor\SentryAdaptor;
 use PhpTek\Sentry\Handler\SentryHandler;
 use PhpTek\Sentry\Helper\SentryTracingHelper;
 use Psr\Log\LoggerInterface;
@@ -54,6 +55,8 @@ class SentryTestConnectionTask extends BuildTask
                 $output->writeln(sprintf('Tested Severity Level: %s', $name));
             }
         }, 'task.sentry');
+
+        SentryAdaptor::flush();
 
         $output->writeln("Done!");
 

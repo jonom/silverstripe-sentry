@@ -124,6 +124,16 @@ SentryTracingHelper::withTransaction('checkout', function (): void {
 
 Note: Tracing payloads are only sent when tracing is enabled in options.
 
+## Flush Behaviour
+
+To reduce dropped payloads at shutdown, the handler registers a one-time
+shutdown flush hook. You can tune timeout via config:
+
+```
+PhpTek\Sentry\Handler\SentryHandler:
+    flush_timeout: 2.0
+```
+
 ## Default Integrations
 
 To reduce duplicate error handling behaviour observed in some Silverstripe + Sentry
