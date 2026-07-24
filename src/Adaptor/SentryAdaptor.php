@@ -14,6 +14,11 @@ use Sentry\State\Scope;
 use Sentry\Severity;
 use Sentry\SentrySdk;
 use Sentry\Client;
+use Sentry\Integration\EnvironmentIntegration;
+use Sentry\Integration\FrameContextifierIntegration;
+use Sentry\Integration\ModulesIntegration;
+use Sentry\Integration\RequestIntegration;
+use Sentry\Integration\TransactionIntegration;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Environment as Env;
@@ -172,6 +177,19 @@ class SentryAdaptor
 
         $opts = Injector::inst()
             ->convertServiceProperty(array_merge($optsConfig, $opts));
+
+        // Ref #65: Avoid duplicate exception/error listener execution by
+        // explicitly controlling integrations unless users override them.
+        if (!array_key_exists('default_integrations', $opts) && !array_key_exists('integrations', $opts)) {
+            $opts['default_integrations'] = false;
+            $opts['integrations'] = [
+                new EnvironmentIntegration(),
+                new FrameContextifierIntegration(),
+                new ModulesIntegration(),
+                new RequestIntegration(),
+                new TransactionIntegration(),
+            ];
+        }
 
         // Deal with proxy settings. Sentry permits host:port format but SilverStripe's
         // YML config only permits single backtick-enclosed env/consts per config

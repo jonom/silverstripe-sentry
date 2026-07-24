@@ -95,6 +95,23 @@ You can test how these messages appear in Sentry itself, by running the test tas
 
     ./vendor/bin/sake dev/tasks/PhpTek-Sentry-Tasks-SentryTestConnectionTask
 
+## Default Integrations
+
+To reduce duplicate error handling behaviour observed in some Silverstripe + Sentry
+setups (see issue #65), this module now sets safe integration defaults when none
+are explicitly configured:
+
+* `default_integrations: false`
+* `integrations:`
+    * `EnvironmentIntegration`
+    * `FrameContextifierIntegration`
+    * `ModulesIntegration`
+    * `RequestIntegration`
+    * `TransactionIntegration`
+
+If you already pass `default_integrations` or `integrations` via `opts`, your
+values are respected and these defaults are not applied.
+
 ## Tags and Extras
 
 The Sentry API allows for custom key-value pairs to be recorded against each message that it is sent.
