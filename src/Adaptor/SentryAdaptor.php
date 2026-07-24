@@ -62,7 +62,7 @@ class SentryAdaptor
         $options = $hub->getClient()->getOptions();
 
         // Use Sentry's own default stacktrace. This was the default prior to v4
-        $options->setAttachStacktrace((bool) !self::get_opts('custom_stacktrace'));
+        $options->setAttachStacktrace((bool) !Config::inst()->get(static::class, 'custom_stacktrace'));
 
         switch ($field) {
             case 'env':
@@ -95,7 +95,7 @@ class SentryAdaptor
                 break;
             case 'level':
                 $hub->configureScope(function (Scope $scope) use ($data): void {
-                    $scope->setLevel(new Severity(SentrySeverity::process_severity($level = $data)));
+                    $scope->setLevel(new Severity(SentrySeverity::process_severity($data)));
                 });
                 break;
             default:
@@ -113,24 +113,36 @@ class SentryAdaptor
      * captureMessage(). One would expect this to be set by default, as it is for
      * $record data sent to Sentry via captureException(), but it isn't.
      *
+     * @param array|null $user
+     * @param array $tags
+     * @param array $extra
+     * @param string|null $level
      * @return Scope
      */
-    public function getContext(): Scope
+    public function getContext(?array $user = null, array $tags = [], array $extra = [], ?string $level = null): Scope
     {
         $scope = new Scope();
 
-        if (!empty($this->context['user'])) {
-            $scope->setUser($this->context['user']);
+        $userData = $user ?? $this->context['user'];
+        $tagsData = array_merge($this->context['tags'] ?? [], $tags);
+        $extraData = array_merge($this->context['extra'] ?? [], $extra);
+
+        if (!empty($userData)) {
+            $scope->setUser($userData);
         }
 
-        foreach ($this->context['tags'] ?? [] as $tagKey => $tagData) {
+        foreach ($tagsData as $tagKey => $tagData) {
             $tagKey = SentryHelper::normalise_tag_name($tagKey);
             $scope->setTag($tagKey, $tagData);
         }
 
-        foreach ($this->context['extra'] ?? [] as $extraKey => $extraData) {
+        foreach ($extraData as $extraKey => $extraValue) {
             $extraKey = SentryHelper::normalise_extras_name($extraKey);
-            $scope->setExtra($extraKey, $extraData);
+            $scope->setExtra($extraKey, $extraValue);
+        }
+
+        if ($level !== null) {
+            $scope->setLevel(new Severity(SentrySeverity::process_severity($level)));
         }
 
         return $scope;
@@ -175,5 +187,4 @@ class SentryAdaptor
 
         return $opts;
     }
-
 }

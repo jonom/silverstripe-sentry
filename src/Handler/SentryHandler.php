@@ -55,11 +55,6 @@ class SentryHandler extends AbstractProcessingHandler
     private $client = null;
 
     /**
-     * Keeps track of the no. times this object is instantiated.
-     */
-    private static int $counter = 0;
-
-    /**
      * @param int|null $level
      * @param bool $bubble
      * @param array $config
@@ -100,25 +95,20 @@ class SentryHandler extends AbstractProcessingHandler
      */
     protected function write(LogRecord $record): void
     {
-        $isException = (
-            isset($record['context']['exception'])
-            && $record['context']['exception'] instanceof Throwable
-        );
-
-        // Ref #65: For some reason, throwing an exception finds its way into both exception + non-exception
-        // conditions below.
-        if ($isException) {
-            static::$counter ++;
-        }
-
-        $record = array_merge($record->toArray(), [
-            'timestamp' => $record['datetime']->getTimestamp(),
+        $recordData = array_merge($record->toArray(), [
+            'timestamp' => $record->datetime->getTimestamp(),
         ]);
+        $isException = self::isExceptionRecord($recordData);
         $adaptor = $this->logger->getAdaptor();
 
         // For reasons..this is the only spot where we're able to getCurrentUser()
         $member = Security::getCurrentUser() ?: null;
         $adaptor->setContext('user', SentryLogger::user_data($member));
+
+        $scope = $adaptor->getContext(
+            extra: self::buildRecordExtra($recordData),
+            level: $recordData['level_name'] ?? null
+        );
 
         // Create a Sentry EventHint and pass an instance of Stacktrace to it.
         // See SentryAdaptor: We explicitly enable/disable default (Sentry) stacktraces.
@@ -126,30 +116,58 @@ class SentryHandler extends AbstractProcessingHandler
 
         if (Config::inst()->get(static::class, 'custom_stacktrace')) {
             $eventHint = EventHint::fromArray([
-                'stacktrace' => new Stacktrace(SentryLogger::backtrace($record)),
+                'stacktrace' => new Stacktrace(SentryLogger::backtrace($recordData)),
             ]);
-        }
-
-        // Ref #65 This works around the fact that somewhere in the bowels of Sentry or Monolog,
-        // we're managing to trigger the handler twice and send two messages, one of each kind.
-        if (static::$counter > 0) {
-            return;
         }
 
         if ($isException) {
             $this->client->captureException(
-                $record['context']['exception'],
-                $adaptor->getContext(),
+                $recordData['context']['exception'],
+                $scope,
                 $eventHint
             );
         } else {
             $this->client->captureMessage(
-                $record['message'],
-                new Severity(SentrySeverity::process_severity($record['level_name'])),
-                $adaptor->getContext(),
+                $recordData['message'],
+                new Severity(SentrySeverity::process_severity($recordData['level_name'])),
+                $scope,
                 $eventHint
             );
         }
     }
 
+    /**
+     * @param array $recordData
+     * @return bool
+     */
+    private static function isExceptionRecord(array $recordData): bool
+    {
+        return isset($recordData['context']['exception'])
+            && $recordData['context']['exception'] instanceof Throwable;
+    }
+
+    /**
+     * Build extra payload from Monolog record context and metadata.
+     *
+     * @param array $recordData
+     * @return array
+     */
+    private static function buildRecordExtra(array $recordData): array
+    {
+        $recordExtra = array_merge(
+            $recordData['extra'] ?? [],
+            $recordData['context'] ?? []
+        );
+
+        unset($recordExtra['exception']);
+
+        $recordExtra['monolog_channel'] = $recordData['channel'] ?? null;
+        $recordExtra['monolog_level_name'] = $recordData['level_name'] ?? null;
+        $recordExtra['monolog_level'] = $recordData['level'] ?? null;
+        $recordExtra['monolog_timestamp'] = $recordData['timestamp'] ?? null;
+
+        return array_filter($recordExtra, static function ($value): bool {
+            return $value !== null;
+        });
+    }
 }
