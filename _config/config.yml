@@ -6,3 +6,4 @@ SilverStripe\Core\Injector\Injector:
   Psr\Log\LoggerInterface:
     calls:
       - [ pushHandler, [ '%$PhpTek\Sentry\Handler\SentryHandler' ]]
+      - [ pushHandler, [ '%$PhpTek\Sentry\Handler\SentryLogsHandler' ]]

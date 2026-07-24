@@ -180,6 +180,12 @@ class SentryAdaptor
 
         $opts = self::applyDefaultIntegrations($opts);
 
+        if (!array_key_exists('enable_logs', $opts)
+            && Config::inst()->get('PhpTek\\Sentry\\Handler\\SentryLogsHandler', 'enabled')
+        ) {
+            $opts['enable_logs'] = true;
+        }
+
         // Deal with proxy settings. Sentry permits host:port format but SilverStripe's
         // YML config only permits single backtick-enclosed env/consts per config
         if (!empty($opts['http_proxy'])) {

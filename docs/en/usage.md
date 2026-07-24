@@ -151,6 +151,54 @@ are explicitly configured:
 If you already pass `default_integrations` or `integrations` via `opts`, your
 values are respected and these defaults are not applied.
 
+## Error Monitoring vs Logs
+
+Sentry has two separate pipelines:
+
+* **Error Monitoring** for exceptions/issues and actionable failures.
+* **Logs** for operational log streams and lower-severity events.
+
+This module supports both via two handlers:
+
+* `PhpTek\\Sentry\\Handler\\SentryHandler` (Error Monitoring)
+* `PhpTek\\Sentry\\Handler\\SentryLogsHandler` (Logs, optional)
+
+### Recommended Default (Split)
+
+Send higher severities to Error Monitoring and lower severities to Logs,
+without duplication.
+
+```
+PhpTek\Sentry\Handler\SentryHandler:
+    log_level: WARNING
+
+PhpTek\Sentry\Handler\SentryLogsHandler:
+    enabled: true
+    log_level: INFO
+    mirror_error_levels: false
+```
+
+With this setup:
+
+* `INFO` logs go to Sentry Logs.
+* `WARNING` and above go to Error Monitoring.
+
+### Parallel Mode (Optional)
+
+If you want overlapping visibility, enable mirroring so warnings/errors go to
+both pipelines.
+
+```
+PhpTek\Sentry\Handler\SentryLogsHandler:
+    enabled: true
+    log_level: INFO
+    mirror_error_levels: true
+```
+
+Note: Logs mode requires Sentry SDK logs support. When `SentryLogsHandler` is
+enabled and `enable_logs` is not explicitly set, the module enables SDK
+`enable_logs` automatically.
+
 ## Tags and Extras
 
 The Sentry API allows for custom key-value pairs to be recorded against each message that it is sent.
