@@ -23,7 +23,7 @@
     },
     "require": {
         "php": "^7.3|^8.3",
-        "sentry/sdk": "^3",
+        "sentry/sdk": "^4",
         "composer/package-versions-deprecated": "^1.11",
         "silverstripe/framework": "^6"
     },
